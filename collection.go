@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"strconv"
 )
 
 // CollectionOptions holds init options
@@ -16,7 +17,7 @@ type Collection struct {
 	Query
 	c        *Client
 	req      *http.Request
-	page     uint16
+	Page     uint16
 	Sys      *Sys          `json:"sys"`
 	Total    int           `json:"total"`
 	Skip     int           `json:"skip"`
@@ -36,14 +37,14 @@ func NewCollection(options *CollectionOptions) *Collection {
 
 	return &Collection{
 		Query: *query,
-		page:  1,
+		Page:  1,
 	}
 }
 
 // Next makes the col.req
 func (col *Collection) Next() (*Collection, error) {
 	// setup query params
-	skip := uint16(col.Limit) * (col.page - 1)
+	skip := uint16(col.Limit) * (col.Page - 1)
 	col.Query.Skip(skip)
 
 	// override request query
@@ -55,7 +56,42 @@ func (col *Collection) Next() (*Collection, error) {
 		return nil, err
 	}
 
-	col.page++
+	col.Page++
+
+	return col, nil
+}
+
+// Next makes the col.req
+func (col *Collection) NextWithQueryParam(queryParams map[string]string) (*Collection, error) {
+	// setup query params
+	skip := col.Query.limit * (col.Page - 1)
+	col.Query.Skip(skip)
+
+	//query := url.Values{}
+
+	for key, value := range queryParams {
+		if key == "include" {
+			value, _ := strconv.ParseUint(value, 16, 16)
+			col.Query.Include(uint16(value))
+			continue
+		}
+
+		if key == "content_type" {
+			col.Query.ContentType(value)
+			continue
+		}
+	}
+
+	// override request query
+	col.req.URL.RawQuery = col.Query.String()
+
+	// makes api call
+	err := col.c.do(col.req, col)
+	if err != nil {
+		return nil, err
+	}
+
+	col.Page++
 
 	return col, nil
 }
