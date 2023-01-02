@@ -12,7 +12,7 @@ import (
 // EntriesService service
 type EntriesService service
 
-//Entry model
+// Entry model
 type Entry struct {
 	locale string
 	Sys    *Sys `json:"sys"`
@@ -69,7 +69,29 @@ func (service *EntriesService) List(spaceID string) *Collection {
 	col := NewCollection(&CollectionOptions{})
 	col.c = service.c
 	col.req = req
-	
+
+	return col
+}
+
+// List returns entries collection
+func (service *EntriesService) ListWithQueryParam(spaceID string, queryParams map[string]string) *Collection {
+	path := fmt.Sprintf("/spaces/%s/entries", spaceID)
+	method := "GET"
+
+	query := url.Values{}
+	for key, value := range queryParams {
+		query.Add(key, value)
+	}
+
+	req, err := service.c.newRequest(method, path, query, nil)
+	if err != nil {
+		return &Collection{}
+	}
+
+	col := NewCollection(&CollectionOptions{})
+	col.c = service.c
+	col.req = req
+
 	return col
 }
 
@@ -77,6 +99,30 @@ func (service *EntriesService) List(spaceID string) *Collection {
 func (service *EntriesService) Get(spaceID, entryID string) (*Entry, error) {
 	path := fmt.Sprintf("/spaces/%s/entries/%s", spaceID, entryID)
 	query := url.Values{}
+	method := "GET"
+
+	req, err := service.c.newRequest(method, path, query, nil)
+	if err != nil {
+		return &Entry{}, err
+	}
+
+	var entry Entry
+	if ok := service.c.do(req, &entry); ok != nil {
+		return nil, err
+	}
+
+	return &entry, err
+}
+
+// Get returns a single entry
+func (service *EntriesService) GetWithQueryParam(spaceID string, queryParams map[string]string) (*Entry, error) {
+	path := fmt.Sprintf("/spaces/%s/entries", spaceID)
+	query := url.Values{}
+
+	for key, value := range queryParams {
+		query.Add(key, value)
+	}
+
 	method := "GET"
 
 	req, err := service.c.newRequest(method, path, query, nil)
