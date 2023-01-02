@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+
+	"github.com/tidwall/gjson"
 )
 
 // CollectionOptions holds init options
@@ -142,6 +144,19 @@ func (col *Collection) ToAsset() []*Asset {
 
 	byteArray, _ := json.Marshal(col.Items)
 	json.NewDecoder(bytes.NewReader(byteArray)).Decode(&assets)
+
+	return assets
+}
+
+func (col *Collection) IncludesToAsset() []*Asset {
+	var assets []*Asset
+
+	byteCols, _ := json.Marshal(col)
+	values := gjson.Get(string(byteCols), "includes.Asset")
+
+	b := []byte(values.String())
+
+	json.NewDecoder(bytes.NewReader(b)).Decode(&assets)
 
 	return assets
 }
