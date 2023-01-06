@@ -17,6 +17,7 @@ type File struct {
 	URL         string      `json:"url,omitempty"`
 	UploadURL   string      `json:"upload,omitempty"`
 	Detail      *FileDetail `json:"details,omitempty"`
+	UploadFrom  *UploadFrom `json:"uploadFrom,omitempty"`
 }
 
 // FileDetail model
@@ -40,9 +41,14 @@ type FileFields struct {
 
 // Asset model
 type Asset struct {
-	locale string
+	Locale string
 	Sys    *Sys        `json:"sys"`
 	Fields *FileFields `json:"fields"`
+}
+
+// UploadFrom model
+type UploadFrom struct {
+	Sys *Sys `json:"sys,omitempty"`
 }
 
 // MarshalJSON for custom json marshaling
@@ -56,20 +62,26 @@ func (asset *Asset) MarshalJSON() ([]byte, error) {
 		},
 	}
 
-	payload["sys"] = asset.Sys
+	if asset.Sys != nil {
+		payload["sys"] = asset.Sys
+	} else {
+		delete(payload, "sys")
+	}
+
+	//payload["sys"] = asset.Sys
 	fields := payload["fields"].(map[string]interface{})
 
 	// title
 	title := fields["title"].(map[string]string)
-	title[asset.locale] = asset.Fields.Title
+	title[asset.Locale] = asset.Fields.Title
 
 	// description
 	description := fields["description"].(map[string]string)
-	description[asset.locale] = asset.Fields.Description
+	description[asset.Locale] = asset.Fields.Description
 
 	// file
 	file := fields["file"].(map[string]interface{})
-	file[asset.locale] = asset.Fields.File
+	file[asset.Locale] = asset.Fields.File
 
 	return json.Marshal(payload)
 }
@@ -83,44 +95,42 @@ func (asset *Asset) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	fileName := payload["fields"].(map[string]interface{})["file"].(map[string]interface{})["fileName"]
-	localized := true
-
-	if fileName == nil {
-		localized = false
+	if asset.Locale == "" {
+		asset.Locale = "en"
 	}
 
-	if localized == false {
-		asset.Sys = &Sys{}
-		b, _ := json.Marshal(payload["sys"])
-		if err := json.Unmarshal(b, asset.Sys); err != nil {
-			return err
-		}
+	asset.Sys = &Sys{}
+	b, _ := json.Marshal(payload["sys"])
+	if err := json.Unmarshal(b, asset.Sys); err != nil {
+		return err
+	}
 
-		title := payload["fields"].(map[string]interface{})["title"]
-		if title != nil {
-			title = title.(map[string]interface{})[asset.locale]
-		}
-
-		description := payload["fields"].(map[string]interface{})["description"]
-		if description != nil {
-			description = description.(map[string]interface{})[asset.locale]
-		}
-
-		asset.Fields = &FileFields{
-			Title:       title.(string),
-			Description: description.(string),
-			File:        &File{},
-		}
-
-		file := payload["fields"].(map[string]interface{})["file"].(map[string]interface{})[asset.locale]
-		if err := json.Unmarshal([]byte(file.(string)), asset.Fields.File); err != nil {
-			return err
-		}
+	title := payload["fields"].(map[string]interface{})["title"]
+	if title != nil {
+		title = title.(map[string]interface{})[asset.Locale]
 	} else {
-		if err := json.Unmarshal(data, Alias(asset)); err != nil {
-			return err
-		}
+		title = ""
+	}
+
+	description := payload["fields"].(map[string]interface{})["description"]
+	if description != nil {
+		description = description.(map[string]interface{})[asset.Locale]
+	} else {
+		description = ""
+	}
+
+	asset.Fields = &FileFields{
+		Title:       title.(string),
+		Description: description.(string),
+		File:        &File{},
+	}
+
+	file := payload["fields"].(map[string]interface{})["file"].(map[string]interface{})[asset.Locale]
+
+	bFile, _ := json.Marshal(file)
+
+	if err := json.Unmarshal(bFile, asset.Fields.File); err != nil {
+		return err
 	}
 
 	return nil
@@ -181,7 +191,7 @@ func (service *AssetsService) Upsert(spaceID string, asset *Asset) error {
 	var path string
 	var method string
 
-	if asset.Sys.CreatedAt != "" {
+	if asset.Sys != nil && asset.Sys.CreatedAt != "" {
 		path = fmt.Sprintf("/spaces/%s/assets/%s", spaceID, asset.Sys.ID)
 		method = "PUT"
 	} else {
@@ -217,7 +227,7 @@ func (service *AssetsService) Delete(spaceID string, asset *Asset) error {
 
 // Process the asset
 func (service *AssetsService) Process(spaceID string, asset *Asset) error {
-	path := fmt.Sprintf("/spaces/%s/assets/%s/files/%s/process", spaceID, asset.Sys.ID, asset.locale)
+	path := fmt.Sprintf("/spaces/%s/assets/%s/files/%s/process", spaceID, asset.Sys.ID, asset.Locale)
 	method := "PUT"
 
 	req, err := service.c.newRequest(method, path, nil, nil)

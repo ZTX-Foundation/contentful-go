@@ -17,7 +17,7 @@ type CollectionOptions struct {
 // Collection model
 type Collection struct {
 	Query
-	c        *Client
+	c        *Contentful
 	req      *http.Request
 	Page     uint16
 	Sys      *Sys          `json:"sys"`
