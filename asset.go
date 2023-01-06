@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 )
 
@@ -88,6 +89,8 @@ func (asset *Asset) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON for custom json unmarshaling
 func (asset *Asset) UnmarshalJSON(data []byte) error {
+	log.Printf("data: %v", string(data))
+
 	type Alias *Asset
 
 	var payload map[string]interface{}
@@ -95,47 +98,77 @@ func (asset *Asset) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if asset.Locale == "" {
-		asset.Locale = "en"
+	fileName := payload["fields"].(map[string]interface{})["file"].(map[string]interface{})["fileName"]
+	localized := true
+
+	if fileName == nil {
+		localized = false
 	}
 
-	asset.Sys = &Sys{}
-	b, _ := json.Marshal(payload["sys"])
-	if err := json.Unmarshal(b, asset.Sys); err != nil {
-		return err
-	}
+	//log.Printf("localized: %v", localized)
 
-	title := payload["fields"].(map[string]interface{})["title"]
-	if title != nil {
-		switch t := title.(type) {
-		case string:
-			title = t
-		default:
-			title = t.(map[string]interface{})[asset.Locale]
+	if localized == false {
+		asset.Sys = &Sys{}
+		b, _ := json.Marshal(payload["sys"])
+		if err := json.Unmarshal(b, asset.Sys); err != nil {
+			return err
+		}
+
+		title := payload["fields"].(map[string]interface{})["title"]
+		if title != nil {
+			switch t := title.(type) {
+			case string:
+				title = t
+			default:
+				if asset.Locale == "" {
+					title = t.(map[string]interface{})["en"]
+				} else {
+					title = t.(map[string]interface{})[asset.Locale]
+				}
+			}
+		} else {
+			title = ""
+		}
+
+		description := payload["fields"].(map[string]interface{})["description"]
+		if description != nil {
+			switch d := description.(type) {
+			case string:
+				description = d
+			default:
+				if asset.Locale == "" {
+					description = d.(map[string]interface{})["en"]
+				} else {
+					description = d.(map[string]interface{})[asset.Locale]
+				}
+			}
+
+		} else {
+			description = ""
+		}
+
+		asset.Fields = &FileFields{
+			Title:       title.(string),
+			Description: description.(string),
+			File:        &File{},
+		}
+
+		var file interface{}
+		if asset.Locale == "" {
+			file = payload["fields"].(map[string]interface{})["file"].(map[string]interface{})["en"]
+		} else {
+			file = payload["fields"].(map[string]interface{})["file"].(map[string]interface{})[asset.Locale]
+		}
+
+		byteFile, _ := json.Marshal(file)
+
+		if err := json.Unmarshal(byteFile, asset.Fields.File); err != nil {
+			return err
 		}
 	} else {
-		title = ""
-	}
-
-	description := payload["fields"].(map[string]interface{})["description"]
-	if description != nil {
-		description = description.(map[string]interface{})[asset.Locale]
-	} else {
-		description = ""
-	}
-
-	asset.Fields = &FileFields{
-		Title:       title.(string),
-		Description: description.(string),
-		File:        &File{},
-	}
-
-	file := payload["fields"].(map[string]interface{})["file"].(map[string]interface{})[asset.Locale]
-
-	bFile, _ := json.Marshal(file)
-
-	if err := json.Unmarshal(bFile, asset.Fields.File); err != nil {
-		return err
+		if err := json.Unmarshal(data, Alias(asset)); err != nil {
+			return err
+		}
 	}
 
 	return nil
