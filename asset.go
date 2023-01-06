@@ -107,7 +107,12 @@ func (asset *Asset) UnmarshalJSON(data []byte) error {
 
 	title := payload["fields"].(map[string]interface{})["title"]
 	if title != nil {
-		title = title.(map[string]interface{})[asset.Locale]
+		switch t := title.(type) {
+		case string:
+			title = t
+		default:
+			title = t.(map[string]interface{})[asset.Locale]
+		}
 	} else {
 		title = ""
 	}
