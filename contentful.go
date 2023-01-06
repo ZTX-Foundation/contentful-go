@@ -14,17 +14,15 @@ import (
 	"moul.io/http2curl"
 )
 
-// Client model
-type Client struct {
-	client        *http.Client
-	api           string
-	token         string
-	Debug         bool
-	QueryParams   map[string]string
-	Headers       map[string]string
-	BaseURL       string
-	Environment   string
-	commonService service
+// Contentful model
+type Contentful struct {
+	client      *http.Client
+	api         string
+	token       string
+	Debug       bool
+	QueryParams map[string]string
+	Headers     map[string]string
+	BaseURL     string
 
 	Spaces       *SpacesService
 	APIKeys      *APIKeyService
@@ -33,15 +31,16 @@ type Client struct {
 	Entries      *EntriesService
 	Locales      *LocalesService
 	Webhooks     *WebhooksService
+	Resources    *ResourcesService
 }
 
 type service struct {
-	c *Client
+	c *Contentful
 }
 
 // NewCMA returns a CMA client
-func NewCMA(token string) *Client {
-	c := &Client{
+func NewCMA(token string) *Contentful {
+	c := &Contentful{
 		client: http.DefaultClient,
 		api:    "CMA",
 		token:  token,
@@ -49,26 +48,25 @@ func NewCMA(token string) *Client {
 		Headers: map[string]string{
 			"Authorization":           fmt.Sprintf("Bearer %s", token),
 			"Content-Type":            "application/vnd.contentful.management.v1+json",
-			"X-Contentful-User-Agent": fmt.Sprintf("sdk contentful-go/%s", Version),
+			"X-Contentful-User-Agent": fmt.Sprintf("sdk contentful.go/%s", Version),
 		},
-		BaseURL:     "https://api.contentful.com",
-		Environment: "master",
+		BaseURL: "https://api.contentful.com",
 	}
-	c.commonService.c = c
 
-	c.Spaces = (*SpacesService)(&c.commonService)
-	c.APIKeys = (*APIKeyService)(&c.commonService)
-	c.Assets = (*AssetsService)(&c.commonService)
-	c.ContentTypes = (*ContentTypesService)(&c.commonService)
-	c.Entries = (*EntriesService)(&c.commonService)
-	c.Locales = (*LocalesService)(&c.commonService)
-	c.Webhooks = (*WebhooksService)(&c.commonService)
+	c.Spaces = &SpacesService{c: c}
+	c.APIKeys = &APIKeyService{c: c}
+	c.Assets = &AssetsService{c: c}
+	c.ContentTypes = &ContentTypesService{c: c}
+	c.Entries = &EntriesService{c: c}
+	c.Locales = &LocalesService{c: c}
+	c.Webhooks = &WebhooksService{c: c}
+
 	return c
 }
 
 // NewCDA returns a CDA client
-func NewCDA(token string) *Client {
-	c := &Client{
+func NewCDA(token string) *Contentful {
+	c := &Contentful{
 		client: http.DefaultClient,
 		api:    "CDA",
 		token:  token,
@@ -76,27 +74,25 @@ func NewCDA(token string) *Client {
 		Headers: map[string]string{
 			"Authorization":           "Bearer " + token,
 			"Content-Type":            "application/vnd.contentful.delivery.v1+json",
-			"X-Contentful-User-Agent": fmt.Sprintf("sdk contentful-go/%s", Version),
+			"X-Contentful-User-Agent": fmt.Sprintf("contentful-go/%s", Version),
 		},
-		BaseURL:     "https://cdn.contentful.com",
-		Environment: "master",
+		BaseURL: "https://cdn.contentful.com",
 	}
-	c.commonService.c = c
 
-	c.Spaces = (*SpacesService)(&c.commonService)
-	c.APIKeys = (*APIKeyService)(&c.commonService)
-	c.Assets = (*AssetsService)(&c.commonService)
-	c.ContentTypes = (*ContentTypesService)(&c.commonService)
-	c.Entries = (*EntriesService)(&c.commonService)
-	c.Locales = (*LocalesService)(&c.commonService)
-	c.Webhooks = (*WebhooksService)(&c.commonService)
+	c.Spaces = &SpacesService{c: c}
+	c.APIKeys = &APIKeyService{c: c}
+	c.Assets = &AssetsService{c: c}
+	c.ContentTypes = &ContentTypesService{c: c}
+	c.Entries = &EntriesService{c: c}
+	c.Locales = &LocalesService{c: c}
+	c.Webhooks = &WebhooksService{c: c}
 
 	return c
 }
 
 // NewCPA returns a CPA client
-func NewCPA(token string) *Client {
-	c := &Client{
+func NewCPA(token string) *Contentful {
+	c := &Contentful{
 		client: http.DefaultClient,
 		Debug:  false,
 		api:    "CPA",
@@ -118,26 +114,37 @@ func NewCPA(token string) *Client {
 	return c
 }
 
+// NewResource returns a client for the resource/uploads endpoints
+func NewResource(token string) *Contentful {
+	c := &Contentful{
+		client: http.DefaultClient,
+		Debug:  false,
+		api:    "URC",
+		token:  token,
+		Headers: map[string]string{
+			"Authorization": "Bearer " + token,
+		},
+		BaseURL: "https://upload.contentful.com",
+	}
+
+	c.Resources = &ResourcesService{c: c}
+
+	return c
+}
+
 // SetOrganization sets the given organization id
-func (c *Client) SetOrganization(organizationID string) *Client {
+func (c *Contentful) SetOrganization(organizationID string) *Contentful {
 	c.Headers["X-Contentful-Organization"] = organizationID
 
 	return c
 }
 
-// SetEnvironment sets the given environment.
-// https://www.contentful.com/developers/docs/references/content-management-api/#/reference/environments
-func (c *Client) SetEnvironment(environment string) *Client {
-	c.Environment = environment
-	return c
-}
-
 // SetHTTPClient sets the underlying http.Client used to make requests.
-func (c *Client) SetHTTPClient(client *http.Client) {
+func (c *Contentful) SetHTTPClient(client *http.Client) {
 	c.client = client
 }
 
-func (c *Client) newRequest(method, path string, query url.Values, body io.Reader) (*http.Request, error) {
+func (c *Contentful) newRequest(method, path string, query url.Values, body io.Reader) (*http.Request, error) {
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return nil, err
@@ -164,7 +171,7 @@ func (c *Client) newRequest(method, path string, query url.Values, body io.Reade
 	return req, nil
 }
 
-func (c *Client) do(req *http.Request, v interface{}) error {
+func (c *Contentful) do(req *http.Request, v interface{}) error {
 	if c.Debug == true {
 		command, _ := http2curl.GetCurlCommand(req)
 		fmt.Println(command)
@@ -178,6 +185,7 @@ func (c *Client) do(req *http.Request, v interface{}) error {
 	if res.StatusCode >= 200 && res.StatusCode < 400 {
 		if v != nil {
 			defer res.Body.Close()
+
 			err = json.NewDecoder(res.Body).Decode(v)
 			if err != nil {
 				return err
@@ -213,7 +221,7 @@ func (c *Client) do(req *http.Request, v interface{}) error {
 	return c.do(req, v)
 }
 
-func (c *Client) handleError(req *http.Request, res *http.Response) error {
+func (c *Contentful) handleError(req *http.Request, res *http.Response) error {
 	if c.Debug == true {
 		dump, err := httputil.DumpResponse(res, true)
 		if err != nil {

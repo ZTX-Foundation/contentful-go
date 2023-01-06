@@ -4,19 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strconv"
 )
 
-// EntriesService service
+// EntriesService servıce
 type EntriesService service
 
 // Entry model
 type Entry struct {
 	locale string
-	Sys    *Sys `json:"sys"`
-	Fields map[string]interface{}
+	Sys    *Sys                   `json:"sys,omitempty"`
+	Fields map[string]interface{} `json:"fields,omitempty"`
 }
 
 // GetVersion returns entity version
@@ -59,31 +58,10 @@ func (service *EntriesService) GetEntryKey(entry *Entry, key string) (*EntryFiel
 
 // List returns entries collection
 func (service *EntriesService) List(spaceID string) *Collection {
-	path := fmt.Sprintf("/spaces/%s/environments/%s/entries", spaceID, service.c.Environment)
-
-	req, err := service.c.newRequest(http.MethodGet, path, nil, nil)
-	if err != nil {
-		return &Collection{}
-	}
-
-	col := NewCollection(&CollectionOptions{})
-	col.c = service.c
-	col.req = req
-
-	return col
-}
-
-// List returns entries collection
-func (service *EntriesService) ListWithQueryParam(spaceID string, queryParams map[string]string) *Collection {
 	path := fmt.Sprintf("/spaces/%s/entries", spaceID)
 	method := "GET"
 
-	query := url.Values{}
-	for key, value := range queryParams {
-		query.Add(key, value)
-	}
-
-	req, err := service.c.newRequest(method, path, query, nil)
+	req, err := service.c.newRequest(method, path, nil, nil)
 	if err != nil {
 		return &Collection{}
 	}
@@ -112,69 +90,6 @@ func (service *EntriesService) Get(spaceID, entryID string) (*Entry, error) {
 	}
 
 	return &entry, err
-}
-
-// Get returns a single entry
-func (service *EntriesService) GetWithQueryParam(spaceID string, queryParams map[string]string) (*Entry, error) {
-	path := fmt.Sprintf("/spaces/%s/entries", spaceID)
-	query := url.Values{}
-
-	for key, value := range queryParams {
-		query.Add(key, value)
-	}
-
-	method := "GET"
-
-	req, err := service.c.newRequest(method, path, query, nil)
-	if err != nil {
-		return &Entry{}, err
-	}
-
-	var entry Entry
-	if ok := service.c.do(req, &entry); ok != nil {
-		return nil, err
-	}
-
-	return &entry, err
-}
-
-// Upsert updates or creates a new entry
-func (service *EntriesService) Upsert(spaceID string, entry *Entry) error {
-	fields := map[string]interface{}{
-		"fields": entry.Fields,
-	}
-
-	bytesArray, err := json.Marshal(fields)
-	if err != nil {
-		return err
-	}
-
-	// Creating/updating an entry requires a content type to be provided
-	if entry.Sys.ContentType == nil {
-		return fmt.Errorf("creating/updating an entry requires a content type")
-	}
-
-	var path string
-	var method string
-
-	if entry.Sys != nil && entry.Sys.CreatedAt != "" {
-		path = fmt.Sprintf("/spaces/%s/environments/%s/entries/%s", spaceID, service.c.Environment, entry.Sys.ID)
-		method = http.MethodPut
-	} else {
-		path = fmt.Sprintf("/spaces/%s/environments/%s/entries", spaceID, service.c.Environment)
-		method = http.MethodPost
-	}
-
-	req, err := service.c.newRequest(method, path, nil, bytes.NewReader(bytesArray))
-	if err != nil {
-		return err
-	}
-
-	version := strconv.Itoa(entry.Sys.Version)
-	req.Header.Set("X-Contentful-Version", version)
-	req.Header.Set("X-Contentful-Content-Type", entry.Sys.ContentType.Sys.ID)
-
-	return service.c.do(req, entry)
 }
 
 // Delete the entry
@@ -220,4 +135,32 @@ func (service *EntriesService) Unpublish(spaceID string, entry *Entry) error {
 	req.Header.Set("X-Contentful-Version", version)
 
 	return service.c.do(req, nil)
+}
+
+// Upsert updates or creates a new entry
+func (service *EntriesService) Update(spaceID string, entry *Entry) error {
+	entryID := entry.Sys.ID
+	contentTypeID := entry.Sys.ContentType.Sys.ID
+	version := entry.Sys.Version
+
+	entry.Sys = nil
+
+	bytesArray, err := json.Marshal(entry)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/spaces/%s/entries/%s", spaceID, entryID)
+	method := "PUT"
+
+	req, err := service.c.newRequest(method, path, nil, bytes.NewReader(bytesArray))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/vnd.contentful.management.v1+json")
+	req.Header.Set("X-Contentful-Content-Type", contentTypeID)
+	req.Header.Set("X-Contentful-Version", strconv.Itoa(version))
+
+	return service.c.do(req, entry)
 }
