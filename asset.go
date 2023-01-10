@@ -68,6 +68,10 @@ func (asset *Asset) MarshalJSON() ([]byte, error) {
 		delete(payload, "sys")
 	}
 
+	if asset.Locale == "" {
+		asset.Locale = "en"
+	}
+
 	//payload["sys"] = asset.Sys
 	fields := payload["fields"].(map[string]interface{})
 
@@ -103,6 +107,10 @@ func (asset *Asset) UnmarshalJSON(data []byte) error {
 		localized = false
 	}
 
+	if asset.Locale == "" {
+		asset.Locale = "en"
+	}
+
 	if localized == false {
 		asset.Sys = &Sys{}
 		b, _ := json.Marshal(payload["sys"])
@@ -132,11 +140,7 @@ func (asset *Asset) UnmarshalJSON(data []byte) error {
 			case string:
 				description = d
 			default:
-				if asset.Locale == "" {
-					description = d.(map[string]interface{})["en"]
-				} else {
-					description = d.(map[string]interface{})[asset.Locale]
-				}
+				description = d.(map[string]interface{})[asset.Locale]
 			}
 
 		} else {
@@ -149,12 +153,7 @@ func (asset *Asset) UnmarshalJSON(data []byte) error {
 			File:        &File{},
 		}
 
-		var file interface{}
-		if asset.Locale == "" {
-			file = payload["fields"].(map[string]interface{})["file"].(map[string]interface{})["en"]
-		} else {
-			file = payload["fields"].(map[string]interface{})["file"].(map[string]interface{})[asset.Locale]
-		}
+		file := payload["fields"].(map[string]interface{})["file"].(map[string]interface{})[asset.Locale]
 
 		byteFile, _ := json.Marshal(file)
 
