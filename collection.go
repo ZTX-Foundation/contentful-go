@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/tidwall/gjson"
 )
@@ -64,36 +63,13 @@ func (col *Collection) Next() (*Collection, error) {
 }
 
 // Next makes the col.req
-func (col *Collection) NextWithQueryParam(queryParams map[string]string) (*Collection, error) {
-	// setup query params
-	skip := col.Query.limit * (col.Page - 1)
-	col.Query.Skip(skip)
+func (col *Collection) NextWithRawQueryParam() (*Collection, error) {
 
-	//query := url.Values{}
-
-	for key, value := range queryParams {
-		if key == "include" {
-			value, _ := strconv.ParseUint(value, 16, 16)
-			col.Query.Include(uint16(value))
-			continue
-		}
-
-		if key == "content_type" {
-			col.Query.ContentType(value)
-			continue
-		}
-	}
-
-	// override request query
-	col.req.URL.RawQuery = col.Query.String()
-
-	// makes api call
+	// makes api call with raw query param
 	err := col.c.do(col.req, col)
 	if err != nil {
 		return nil, err
 	}
-
-	col.Page++
 
 	return col, nil
 }
