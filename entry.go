@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 )
@@ -207,6 +208,45 @@ func (service *EntriesService) Update(spaceID string, entry *Entry) error {
 	req.Header.Set("Content-Type", "application/vnd.contentful.management.v1+json")
 	req.Header.Set("X-Contentful-Content-Type", contentTypeID)
 	req.Header.Set("X-Contentful-Version", strconv.Itoa(version))
+
+	return service.c.do(req, entry)
+}
+
+// Upsert updates or creates a new entry
+func (service *EntriesService) Upsert(spaceID string, entry *Entry) error {
+	fields := map[string]interface{}{
+		"fields": entry.Fields,
+	}
+
+	bytesArray, err := json.Marshal(fields)
+	if err != nil {
+		return err
+	}
+
+	// Creating/updating an entry requires a content type to be provided
+	if entry.Sys.ContentType == nil {
+		return fmt.Errorf("creating/updating an entry requires a content type")
+	}
+
+	var path string
+	var method string
+
+	if entry.Sys != nil && entry.Sys.CreatedAt != "" {
+		path = fmt.Sprintf("/spaces/%s/entries/%s", spaceID, entry.Sys.ID)
+		method = http.MethodPut
+	} else {
+		path = fmt.Sprintf("/spaces/%s/entries", spaceID)
+		method = http.MethodPost
+	}
+
+	req, err := service.c.newRequest(method, path, nil, bytes.NewReader(bytesArray))
+	if err != nil {
+		return err
+	}
+
+	version := strconv.Itoa(entry.Sys.Version)
+	req.Header.Set("X-Contentful-Version", version)
+	req.Header.Set("X-Contentful-Content-Type", entry.Sys.ContentType.Sys.ID)
 
 	return service.c.do(req, entry)
 }
