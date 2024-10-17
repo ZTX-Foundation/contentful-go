@@ -24,14 +24,15 @@ type Contentful struct {
 	Headers     map[string]string
 	BaseURL     string
 
-	Spaces       *SpacesService
-	APIKeys      *APIKeyService
-	Assets       *AssetsService
-	ContentTypes *ContentTypesService
-	Entries      *EntriesService
-	Locales      *LocalesService
-	Webhooks     *WebhooksService
-	Resources    *ResourcesService
+	Spaces         *SpacesService
+	APIKeys        *APIKeyService
+	Assets         *AssetsService
+	ContentTypes   *ContentTypesService
+	Entries        *EntriesService
+	Locales        *LocalesService
+	Webhooks       *WebhooksService
+	Resources      *ResourcesService
+	LinkRespHeader string
 }
 
 type service struct {
@@ -183,6 +184,9 @@ func (c *Contentful) do(req *http.Request, v interface{}) error {
 	}
 
 	if res.StatusCode >= 200 && res.StatusCode < 400 {
+		link := res.Header.Get("Link")
+		c.LinkRespHeader = link
+
 		if v != nil {
 			defer res.Body.Close()
 
