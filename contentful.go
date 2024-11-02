@@ -155,7 +155,7 @@ func (c *Contentful) newRequest(method, path string, query url.Values, body io.R
 		query.Set(key, value)
 	}
 
-	u.Path = path
+	u.Path = fmt.Sprintf("%s%s", u.Path, path) // Fixed an issue with parsing paths resulting in “v2” being removed.
 	u.RawQuery = query.Encode()
 
 	req, err := http.NewRequest(method, u.String(), body)
