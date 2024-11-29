@@ -24,15 +24,14 @@ type Contentful struct {
 	Headers     map[string]string
 	BaseURL     string
 
-	Spaces         *SpacesService
-	APIKeys        *APIKeyService
-	Assets         *AssetsService
-	ContentTypes   *ContentTypesService
-	Entries        *EntriesService
-	Locales        *LocalesService
-	Webhooks       *WebhooksService
-	Resources      *ResourcesService
-	LinkRespHeader string
+	Spaces       *SpacesService
+	APIKeys      *APIKeyService
+	Assets       *AssetsService
+	ContentTypes *ContentTypesService
+	Entries      *EntriesService
+	Locales      *LocalesService
+	Webhooks     *WebhooksService
+	Resources    *ResourcesService
 }
 
 type service struct {
@@ -184,9 +183,6 @@ func (c *Contentful) do(req *http.Request, v interface{}) error {
 	}
 
 	if res.StatusCode >= 200 && res.StatusCode < 400 {
-		link := res.Header.Get("Link")
-		c.LinkRespHeader = link
-
 		if v != nil {
 			defer res.Body.Close()
 
@@ -223,6 +219,58 @@ func (c *Contentful) do(req *http.Request, v interface{}) error {
 	time.Sleep(time.Second * time.Duration(waitSeconds))
 
 	return c.do(req, v)
+}
+
+func (c *Contentful) doWithReturnLinkHeader(req *http.Request, v interface{}) (string, error) {
+	if c.Debug == true {
+		command, _ := http2curl.GetCurlCommand(req)
+		fmt.Println(command)
+	}
+
+	res, err := c.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	if res.StatusCode >= 200 && res.StatusCode < 400 {
+		link := res.Header.Get("Link")
+
+		if v != nil {
+			defer res.Body.Close()
+
+			err = json.NewDecoder(res.Body).Decode(v)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		return link, nil
+	}
+
+	// parse api response
+	apiError := c.handleError(req, res)
+
+	// return apiError if it is not rate limit error
+	if _, ok := apiError.(RateLimitExceededError); !ok {
+		return "", apiError
+	}
+
+	resetHeader := res.Header.Get("x-contentful-ratelimit-reset")
+
+	// return apiError if Ratelimit-Reset header is not presented
+	if resetHeader == "" {
+		return "", apiError
+	}
+
+	// wait X-Contentful-Ratelimit-Reset amount of seconds
+	waitSeconds, err := strconv.Atoi(resetHeader)
+	if err != nil {
+		return "", apiError
+	}
+
+	time.Sleep(time.Second * time.Duration(waitSeconds))
+
+	return c.doWithReturnLinkHeader(req, v)
 }
 
 func (c *Contentful) handleError(req *http.Request, res *http.Response) error {
