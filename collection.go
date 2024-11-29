@@ -16,15 +16,16 @@ type CollectionOptions struct {
 // Collection model
 type Collection struct {
 	Query
-	c        *Contentful
-	req      *http.Request
-	Page     uint16
-	Sys      *Sys          `json:"sys"`
-	Total    int           `json:"total"`
-	Skip     int           `json:"skip"`
-	Limit    int           `json:"limit"`
-	Items    []interface{} `json:"items"`
-	Includes interface{}   `json:"includes"`
+	c          *Contentful
+	req        *http.Request
+	Page       uint16
+	Sys        *Sys          `json:"sys"`
+	Total      int           `json:"total"`
+	Skip       int           `json:"skip"`
+	Limit      int           `json:"limit"`
+	Items      []interface{} `json:"items"`
+	Includes   interface{}   `json:"includes"`
+	LinkHeader string        `json:"-"`
 }
 
 // NewCollection initilazies a new collection
@@ -70,6 +71,19 @@ func (col *Collection) NextWithRawQueryParam() (*Collection, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return col, nil
+}
+
+func (col *Collection) NextWithRawQueryParamWithLinkHeader() (*Collection, error) {
+
+	// makes api call with raw query param
+	link, err := col.c.doWithReturnLinkHeader(col.req, col)
+	if err != nil {
+		return nil, err
+	}
+
+	col.LinkHeader = link
 
 	return col, nil
 }
