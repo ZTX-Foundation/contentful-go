@@ -3,6 +3,7 @@ package contentful
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/url"
 )
@@ -60,6 +61,27 @@ func (service *ResourcesService) Upsert(spaceID string, resource *Resource) erro
 	method := "POST"
 
 	req, err := service.c.newRequest(method, path, nil, bytes.NewReader(bytesArray))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/octet-stream")
+
+	return service.c.do(req, resource)
+}
+
+// UpsertStream is a streaming upload
+func (service *ResourcesService) UpsertStream(spaceID string, resource *Resource, reader io.Reader) error {
+	body := &bytes.Buffer{}
+
+	if _, err := io.Copy(body, reader); err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/spaces/%s/uploads", spaceID)
+	method := "POST"
+
+	req, err := service.c.newRequest(method, path, nil, body)
 	if err != nil {
 		return err
 	}
