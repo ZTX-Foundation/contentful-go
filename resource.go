@@ -70,8 +70,8 @@ func (service *ResourcesService) Upsert(spaceID string, resource *Resource) erro
 	return service.c.do(req, resource)
 }
 
-// UpsertStream is a streaming upload
-func (service *ResourcesService) UpsertStream(spaceID string, resource *Resource, reader io.Reader) error {
+// UpsertByteBuffer is a streaming upload
+func (service *ResourcesService) UpsertByteBuffer(spaceID string, resource *Resource, reader io.Reader) error {
 	body := &bytes.Buffer{}
 
 	if _, err := io.Copy(body, reader); err != nil {
