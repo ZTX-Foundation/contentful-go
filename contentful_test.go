@@ -19,8 +19,8 @@ import (
 
 var (
 	server         *httptest.Server
-	cma            *Client
-	c              *Client
+	cma            *Contentful
+	c              *Contentful
 	CMAToken       = "b4c0n73n7fu1"
 	CDAToken       = "cda-token"
 	CPAToken       = "cpa-token"
@@ -139,33 +139,33 @@ func TestContentfulNewCMA(t *testing.T) {
 	assert := assert.New(t)
 
 	cma := NewCMA(CMAToken)
-	assert.IsType(Client{}, *cma)
+	assert.IsType(Contentful{}, *cma)
 	assert.Equal("https://api.contentful.com", cma.BaseURL)
 	assert.Equal("CMA", cma.api)
 	assert.Equal(CMAToken, cma.token)
 	assert.Equal(fmt.Sprintf("Bearer %s", CMAToken), cma.Headers["Authorization"])
 	assert.Equal("application/vnd.contentful.management.v1+json", cma.Headers["Content-Type"])
-	assert.Equal(fmt.Sprintf("sdk contentful-go/%s", Version), cma.Headers["X-Contentful-User-Agent"])
+	assert.Equal(fmt.Sprintf("sdk contentful.go/%s", Version), cma.Headers["X-Contentful-User-Agent"])
 }
 
 func TestContentfulNewCDA(t *testing.T) {
 	assert := assert.New(t)
 
 	cda := NewCDA(CDAToken)
-	assert.IsType(Client{}, *cda)
+	assert.IsType(Contentful{}, *cda)
 	assert.Equal("https://cdn.contentful.com", cda.BaseURL)
 	assert.Equal("CDA", cda.api)
 	assert.Equal(CDAToken, cda.token)
 	assert.Equal(fmt.Sprintf("Bearer %s", CDAToken), cda.Headers["Authorization"])
 	assert.Equal("application/vnd.contentful.delivery.v1+json", cda.Headers["Content-Type"])
-	assert.Equal(fmt.Sprintf("sdk contentful-go/%s", Version), cda.Headers["X-Contentful-User-Agent"])
+	assert.Equal(fmt.Sprintf("contentful-go/%s", Version), cda.Headers["X-Contentful-User-Agent"])
 }
 
 func TestContentfulNewCPA(t *testing.T) {
 	assert := assert.New(t)
 
 	cpa := NewCPA(CPAToken)
-	assert.IsType(Client{}, *cpa)
+	assert.IsType(Contentful{}, *cpa)
 	assert.Equal("https://preview.contentful.com", cpa.BaseURL)
 	assert.Equal("CPA", cpa.api)
 	assert.Equal(CPAToken, cpa.token)
