@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
+
+	"github.com/spf13/afero"
 )
 
 // ResourcesService service
@@ -50,24 +51,20 @@ func (service *ResourcesService) Get(spaceID, resourceID string) (*Resource, err
 	return &resource, err
 }
 
+// UpsertWithFs creates an upload resource using the provided filesystem
+func (service *ResourcesService) UpsertWithFs(spaceID string, resource *Resource, fs afero.Fs) error {
+	file, err := fs.Open(resource.FilePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return service.UpsertByteBuffer(spaceID, resource, file)
+}
+
 // Create creates an upload resource
 func (service *ResourcesService) Upsert(spaceID string, resource *Resource) error {
-	bytesArray, err := ioutil.ReadFile(resource.FilePath)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/spaces/%s/uploads", spaceID)
-	method := "POST"
-
-	req, err := service.c.newRequest(method, path, nil, bytes.NewReader(bytesArray))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Content-Type", "application/octet-stream")
-
-	return service.c.do(req, resource)
+	return service.UpsertWithFs(spaceID, resource, afero.NewOsFs())
 }
 
 // UpsertByteBuffer is a streaming upload

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,11 +27,12 @@ var (
 	CPAToken       = "cpa-token"
 	spaceID        = "id1"
 	organizationID = "org-id"
+	testFs         = afero.NewMemMapFs()
 )
 
 func readTestData(fileName string) string {
 	path := "testdata/" + fileName
-	content, err := ioutil.ReadFile(path)
+	content, err := afero.ReadFile(testFs, path)
 	if err != nil {
 		log.Fatal(err)
 		return ""
@@ -93,6 +95,25 @@ func localeFromTestData(fileName string) (*Locale, error) {
 }
 
 func setup() {
+	// Copy test data files into memory filesystem
+	osFs := afero.NewOsFs()
+	files, err := afero.ReadDir(osFs, "testdata")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			content, err := afero.ReadFile(osFs, "testdata/"+file.Name())
+			if err != nil {
+				log.Fatal(err)
+			}
+			if err := afero.WriteFile(testFs, "testdata/"+file.Name(), content, 0644); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fixture := strings.Replace(r.URL.Path, "/", "-", -1)
 		fixture = strings.TrimLeft(fixture, "-")
@@ -114,7 +135,7 @@ func setup() {
 			}
 		}
 
-		file, err := ioutil.ReadFile(path)
+		file, err := afero.ReadFile(testFs, path)
 		if err != nil {
 			fmt.Fprintln(w, err)
 			return
@@ -254,7 +275,7 @@ func TestHandleError(t *testing.T) {
 
 	marshaled, _ := json.Marshal(errResponse)
 	errResponseReader := bytes.NewReader(marshaled)
-	errResponseReadCloser := ioutil.NopCloser(errResponseReader)
+	errResponseReadCloser := io.NopCloser(errResponseReader)
 
 	req, _ := c.newRequest(method, path, query, nil)
 	responseHeaders := http.Header{}
