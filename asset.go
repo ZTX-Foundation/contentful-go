@@ -101,17 +101,13 @@ func (asset *Asset) UnmarshalJSON(data []byte) error {
 	}
 
 	fileName := payload["fields"].(map[string]interface{})["file"].(map[string]interface{})["fileName"]
-	localized := true
-
-	if fileName == nil {
-		localized = false
-	}
+	localized := fileName != nil
 
 	if asset.Locale == "" {
 		asset.Locale = "en"
 	}
 
-	if localized == false {
+	if !localized {
 		asset.Sys = &Sys{}
 		b, _ := json.Marshal(payload["sys"])
 		if err := json.Unmarshal(b, asset.Sys); err != nil {

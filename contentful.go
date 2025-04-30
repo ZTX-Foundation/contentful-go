@@ -172,7 +172,7 @@ func (c *Contentful) newRequest(method, path string, query url.Values, body io.R
 }
 
 func (c *Contentful) do(req *http.Request, v interface{}) error {
-	if c.Debug == true {
+	if c.Debug {
 		command, _ := http2curl.GetCurlCommand(req)
 		fmt.Println(command)
 	}
@@ -222,7 +222,7 @@ func (c *Contentful) do(req *http.Request, v interface{}) error {
 }
 
 func (c *Contentful) doWithReturnLinkHeader(req *http.Request, v interface{}) (string, error) {
-	if c.Debug == true {
+	if c.Debug {
 		command, _ := http2curl.GetCurlCommand(req)
 		fmt.Println(command)
 	}
@@ -274,7 +274,7 @@ func (c *Contentful) doWithReturnLinkHeader(req *http.Request, v interface{}) (s
 }
 
 func (c *Contentful) handleError(req *http.Request, res *http.Response) error {
-	if c.Debug == true {
+	if c.Debug {
 		dump, err := httputil.DumpResponse(res, true)
 		if err != nil {
 			log.Fatal(err)

@@ -14,7 +14,7 @@ type EntriesService service
 
 // Entry model
 type Entry struct {
-	locale string
+	Locale string
 	Sys    *Sys                   `json:"sys,omitempty"`
 	Fields map[string]interface{} `json:"fields,omitempty"`
 }

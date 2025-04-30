@@ -121,7 +121,6 @@ func setup() {
 		}
 
 		fmt.Fprintln(w, string(file))
-		return
 	})
 
 	server = httptest.NewServer(handler)
